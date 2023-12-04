@@ -1,7 +1,6 @@
 // "Copyright 2023 Blustak"
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <string>
