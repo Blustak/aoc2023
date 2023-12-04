@@ -1,2 +1,2 @@
 #ignore all compilation out files
-.out
+*.out
