@@ -2,15 +2,22 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <sstream>
 #include <string>
 #include <vector>
 
 std::vector<std::string> read_file(const std::string &file_path);
 
+struct scratch_record {
+  int instances;
+  int wins;
+};
+
 int main(int argc, char **argv) {
   std::vector<std::string> lines = read_file(argv[1]);
   std::vector<std::string>::iterator iter;
+  std::vector<scratch_record> record;
   unsigned int cum_score = 0;
   for (iter = lines.begin(); iter != lines.end(); iter++) {
     // First remove the card info
@@ -36,17 +43,27 @@ int main(int argc, char **argv) {
         my_nos.push_back(std::stoi(buffer));
       }
     }
-    int score = 0;
+    int wins = 0;
     for (auto e : winning_nos) {
       if (std::find(my_nos.begin(), my_nos.end(), e) != std::end(my_nos)) {
-        std::cout << "Winning no: " << e << "\n";
-        ((score == 0) ? score = 1 : score *= 2);
+        wins++;
       }
     }
-    std::cout << "Score this round:" << score << "\n";
-    cum_score += score;
+    record.push_back(scratch_record{1, wins});
   }
-  std::cout << "Score i got was: " << cum_score << "\n";
+  for (std::vector<scratch_record>::iterator iter = record.begin();
+       iter != record.end(); iter++) {
+    for (int i = 0; i != iter->instances; i++) {
+      for (int j = 1; j <= iter->wins; j++) {
+        std::next(iter, j)->instances++;
+      }
+    }
+  }
+  int cum_sum = 0;
+  for (auto r : record) {
+    cum_sum += r.instances;
+  }
+  std::cout << "The number of cards I got was " << cum_sum << ",\n";
   return 0;
 }
 
