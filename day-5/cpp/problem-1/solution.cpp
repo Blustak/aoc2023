@@ -1,4 +1,19 @@
 // "Copyright 2023 anyone who wants this trash"
+//
+// KEY MAP INFO
+// source-to-destination map:
+// destination range start | source range start | range
+//
+// EXAMPLE:
+// seed-to-soil map:
+// 50 98 2
+// 52 50 48
+//
+// line 1: soils [50-51] (range 2) map to seeds [98-99], therefore soil 50
+// corresponds to seed 98, soil 51 to seed 99. line 2: soils [52-99] (range 48)
+// map to seeds [50-97], therefore soil 52 corresponds to seed 50 ... soil 99 to
+// seed 97
+//
 
 #include <string>
 #include <vector>
