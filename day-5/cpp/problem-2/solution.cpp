@@ -196,11 +196,6 @@ int main(int argc, char **argv) {
       }
       ranges = new_ranges;
       new_ranges.clear();
-      for (auto r : ranges) {
-        std::cout << "range start: " << r.start << ", length: " << r.length
-                  << "\n";
-      }
-      std::cout << "---\n";
     }
 
     for (auto r : ranges) {
