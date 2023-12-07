@@ -2,21 +2,26 @@
 //
 // KEY MAP INFO
 // source-to-destination map:
-// destination range start | source range start | range
+// destination my_range start | source range start | range
 //
 // EXAMPLE:
 // seed-to-soil map:
 // 50 98 2
 // 52 50 48
 //
-// line 1: soils [50-51] (range 2) map to seeds [98-99], therefore soil 50
-// corresponds to seed 98, soil 51 to seed 99. line 2: soils [52-99] (range 48)
-// map to seeds [50-97], therefore soil 52 corresponds to seed 50 ... soil 99 to
-// seed 97
+// line 1: soils [50-51] (my_range 2) map to seeds [98-99], therefore soil 50
+// corresponds to seed 98, soil 51 to seed 99. line 2: soils [52-99] (my_range
+// 48) map to seeds [50-97], therefore soil 52 corresponds to seed 50 ... soil
+// 99 to seed 97
+//
+// PROBLEM 2: seed codes are written as pairs, going as code start: my_range.
+//
+// This implementation really sucks. I imagine some pathfinding algo would make
+// this a lot faster.
+//
 //
 
 #include <algorithm>
-#include <any>
 #include <cctype>
 #include <cstdint>
 #include <fstream>
@@ -28,10 +33,15 @@
 
 std::vector<std::string> split_by_delim(const std::string &str, char delim);
 
+struct my_range {
+  std::uint32_t start;
+  std::uint32_t length;
+};
+
 struct almanac_entry {
-  std::uint64_t dest_start;
-  std::uint64_t src_start;
-  std::uint64_t range;
+  my_range dest_range;
+  my_range src_range;
+  std::uint32_t length = src_range.length;
 };
 
 enum map_type {
@@ -53,7 +63,7 @@ enum read_state {
 };
 
 int main(int argc, char **argv) {
-  std::vector<std::uint64_t> seed_codes;
+  std::vector<std::uint32_t> seed_codes;
   std::map<map_type, std::vector<almanac_entry>> almanac;
   std::map<std::string, map_type> translator = {
       {"seed-to-soil map", map_type::SEED_SOIL},
@@ -63,7 +73,7 @@ int main(int argc, char **argv) {
       {"light-to-temperature map", map_type::LIGHT_TEMP},
       {"temperature-to-humidity map", map_type::TEMP_HUM},
       {"humidity-to-location map", map_type::HUM_LOCATION}};
-  std::vector<std::uint64_t> seed_to_location;
+  std::vector<std::uint32_t> seed_to_location;
   std::string buffer;
   std::ifstream f(argv[1]);
   read_state state = read_state::READ;
@@ -75,7 +85,7 @@ int main(int argc, char **argv) {
       switch (state) {
       case read_state::SEED_CODES:
         for (std::string element :
-             split_by_delim(buffer.substr(buffer.find(":")), ' ')) {
+             split_by_delim(buffer.substr(buffer.find(":") + 1), ' ')) {
           if (element.size() > 0 && isdigit(element[0])) {
             seed_codes.push_back(std::stoull(element));
           }
@@ -95,7 +105,7 @@ int main(int argc, char **argv) {
       case read_state::MAP: {
         std::istringstream iss(buffer);
         std::string t_buffer;
-        std::vector<std::uint64_t> entries;
+        std::vector<std::uint32_t> entries;
         entries.reserve(3);
         while (getline(iss, t_buffer, ' ')) {
           if (t_buffer.size() >= 1) {
@@ -103,7 +113,8 @@ int main(int argc, char **argv) {
           }
         }
         almanac[m_type].push_back(
-            almanac_entry{entries[0], entries[1], entries[2]});
+            almanac_entry{my_range{entries[0], entries[2]},
+                          my_range{entries[1], entries[2]}});
         state = read_state::READ;
       }
       case read_state::READ:
@@ -135,27 +146,66 @@ int main(int argc, char **argv) {
       return 0;
     }
     // Algorithm
-    for (auto seed : seed_codes) {
-      std::uint64_t prev_code = seed;
-      for (map_type m = map_type::SEED_SOIL; m <= map_type::HUM_LOCATION;
-           m = map_type(m + 1)) {
-        std::vector<almanac_entry> table = almanac[m];
-        std::uint64_t t = prev_code;
-        for (almanac_entry e : table) {
-          if (prev_code >= e.src_start && prev_code < (e.src_start + e.range)) {
-            prev_code = e.dest_start + (prev_code - e.src_start);
-            break;
+    std::uint32_t smallest_loc = uint32_t(-1);
+    std::vector<my_range> ranges;
+    for (int i = 0; i < seed_codes.size(); i += 2) {
+      ranges.push_back(my_range{seed_codes[i], seed_codes[i + 1]});
+    }
+    std::vector<my_range> new_ranges;
+    for (map_type m = map_type::SEED_SOIL; m <= map_type::HUM_LOCATION;
+         m = map_type(m + 1)) {
+      std::vector<almanac_entry> table = almanac[m];
+      while (!table.empty()) {
+        almanac_entry row = table.back();
+        for (my_range r : ranges) {
+          // no intersection; add as is
+          if (row.src_range.start + row.length < r.start ||
+              r.start + r.length < row.src_range.start) {
+            new_ranges.push_back(r);
+          } else {
+            std::uint32_t intersection_start =
+                std::max(row.src_range.start, r.start);
+            std::uint32_t intersection_length =
+                std::min(row.src_range.start + row.length, r.start + r.length) -
+                intersection_start;
+            // lhs of intersection
+            if (row.src_range.start < r.start) {
+              new_ranges.push_back(my_range{row.dest_range.start,
+                                            r.start - row.src_range.start});
+            } else if (r.start < row.src_range.start) {
+              new_ranges.push_back(
+                  my_range{r.start, row.src_range.start - r.start});
+            }
+            new_ranges.push_back(
+                my_range{row.dest_range.start +
+                             (intersection_start - row.src_range.start),
+                         intersection_length});
+            // rhs of intersection
+            if (r.start + r.length < row.src_range.start + row.length) {
+              new_ranges.push_back(my_range{
+                  row.dest_range.start + (r.start + r.length),
+                  row.src_range.start + row.length - (r.start + r.length)});
+            } else if (row.src_range.start + row.length < r.start + r.length) {
+              new_ranges.push_back(my_range{
+                  r.start + (row.src_range.start + row.length),
+                  r.start + r.length - (row.src_range.start + row.length)});
+            }
           }
         }
-        std::cout << t << "->" << prev_code << "\n";
+        table.pop_back();
       }
-      seed_to_location.push_back(prev_code);
-      std::cout << "Prev code: " << prev_code << "\n";
+      ranges = new_ranges;
+      new_ranges.clear();
+      for (auto r : ranges) {
+        std::cout << "range start: " << r.start << ", length: " << r.length
+                  << "\n";
+      }
+      std::cout << "---\n";
     }
-    std::uint64_t smallest_loc = uint64_t(-1);
-    for (auto code : seed_to_location) {
-      if (code < smallest_loc) {
-        smallest_loc = code;
+
+    for (auto r : ranges) {
+      if (r.start < smallest_loc) {
+        smallest_loc = r.start;
       }
     }
     std::cout << "The smallest location I found was " << smallest_loc << ".\n";
