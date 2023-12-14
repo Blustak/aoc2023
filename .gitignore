@@ -1,2 +1,6 @@
 #ignore all compilation out files
 *.out
+**/rust/
+!**/rust/problem-1/src
+!**/rust/problem-2/src
+!.toml
