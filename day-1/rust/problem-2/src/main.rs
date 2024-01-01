@@ -9,6 +9,9 @@ fn main() {
 
 fn solution(file_path: &str) -> u32 {
     //File handling
+    let number_s = [
+        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+    ];
     let mut file = File::open(file_path).expect("Couldn't open file.");
     let mut contents: String = String::new();
     let mut sum: u32 = 0;
@@ -19,29 +22,47 @@ fn solution(file_path: &str) -> u32 {
     for line in contents.split('\n').map(|line| line.trim()) {
         if !(line.is_empty()) {
             let mut first: u32 = 0;
+            let mut first_pos = usize::MAX;
             let mut last: u32 = 0;
-            for c in line.chars() {
-                match c {
-                    '0'..='9' => {
-                        first = c.to_digit(10).unwrap();
-                        break;
-                    }
-                    _ => {
-                        continue;
+            let mut last_pos = usize::MIN;
+            for number in 0..number_s.len() {
+                let no = number_s[number];
+                if let Some(x) = line.find(no) {
+                    if x < first_pos {
+                        first = number as u32 + 1;
+                        first_pos = x;
                     }
                 }
-            }
-            for c in line.chars().rev() {
-                match c {
-                    '0'..='9' => {
-                        last = c.to_digit(10).unwrap();
-                        break;
+                if let Some(x) = line.rfind(no) {
+                    if x > last_pos || last == 0 {
+                        //last == 0 needed in case last digit is in 0th
+                        //position
+                        last = number as u32 + 1;
+                        last_pos = x;
                     }
-                    _ => continue,
                 }
-            }
-            if first == 0 || last == 0 {
-                panic!("couldn't find a matching digit!");
+                for c in line.char_indices() {
+                    match c.1 {
+                        '0'..='9' => {
+                            if c.0 < first_pos {
+                                first = c.1.to_digit(10).unwrap();
+                                break;
+                            }
+                        }
+                        _ => continue,
+                    }
+                }
+                for c in line.char_indices().rev() {
+                    match c.1 {
+                        '0'..='9' => {
+                            if c.0 > last_pos || last == 0 {
+                                last = c.1.to_digit(10).unwrap();
+                                break;
+                            }
+                        }
+                        _ => continue,
+                    }
+                }
             }
             sum += first * 10 + last;
         }
@@ -54,6 +75,6 @@ mod tests {
     #[test]
     fn sample_input() {
         use super::solution;
-        assert_eq!(solution("test.txt"), 142);
+        assert_eq!(solution("test.txt"), 281);
     }
 }
