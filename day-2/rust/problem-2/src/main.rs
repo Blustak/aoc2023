@@ -2,9 +2,6 @@ use std::fs::File;
 use std::io::prelude::*;
 
 const INPUT_FILE: &str = "input.txt";
-const RED_CUBES: usize = 12;
-const BLUE_CUBES: usize = 14;
-const GREEN_CUBES: usize = 13;
 
 fn main() {
     println!("I got {} as my solution.", solution(INPUT_FILE));
@@ -18,34 +15,47 @@ fn solution(file_path: &str) -> usize {
         .expect("Couldn't read file contents.");
 
     //Solution
-    let mut id_sum: usize = 0;
+    let mut power_sum: usize = 0;
 
     for line in contents.split('\n') {
         if !line.is_empty() {
-            let game_id: &str;
             let game_contents: &str;
-            (game_id, game_contents) =
+            let mut max_red: usize = 0;
+            let mut max_blue: usize = 0;
+            let mut max_green: usize = 0;
+            (_, game_contents) =
                 line.split_at(line.find(':').expect("Coudln't split string at colon."));
-            let id: usize = strip_and_parse(game_id);
-            if game_contents.split(';').all(|round| {
-                round
-                    .split(',')
-                    .all(|turn| match get_non_alpha(turn).as_ref() {
-                        "red" => strip_and_parse(turn) <= RED_CUBES,
-                        "blue" => strip_and_parse(turn) <= BLUE_CUBES,
-                        "green" => strip_and_parse(turn) <= GREEN_CUBES,
-                        _ => panic!("Somehow given non rgb input."),
-                    })
-            }) {
-                println!("Game {} was acceptable!", id);
-                id_sum += id;
+
+            for round in game_contents.split(';') {
+                for turn in round.split(',') {
+                    let x = strip_and_parse(turn);
+                    match get_alpha(turn).as_ref() {
+                        "red" => {
+                            if x > max_red {
+                                max_red = x;
+                            }
+                        }
+                        "blue" => {
+                            if x > max_blue {
+                                max_blue = x;
+                            }
+                        }
+                        "green" => {
+                            if x > max_green {
+                                max_green = x;
+                            }
+                        }
+                        _ => panic!("Couldn't find an identifier!"),
+                    };
+                }
             }
+            power_sum += max_red * max_blue * max_green;
         }
     }
-    id_sum
+    power_sum
 }
 
-fn get_non_alpha(s: &str) -> String {
+fn get_alpha(s: &str) -> String {
     s.chars().filter(|c| c.is_alphabetic()).collect()
 }
 
@@ -62,7 +72,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_input() {
-        assert_eq!(solution("test.txt"), 8);
+        assert_eq!(solution("test.txt"), 2286);
     }
     #[test]
     fn test_strip_and_parse() {
@@ -74,9 +84,9 @@ mod tests {
     }
     #[test]
     fn test_strip() {
-        assert_eq!(get_non_alpha("123thisisatest123",), "thisisatest");
+        assert_eq!(get_alpha("123thisisatest123",), "thisisatest");
         assert_eq!(
-            get_non_alpha("well, certainly strange."),
+            get_alpha("well, certainly strange."),
             "wellcertainlystrange"
         );
     }
