@@ -3,3 +3,4 @@
 *.o
 */bin/
 target/
+input.txt
